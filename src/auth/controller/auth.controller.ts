@@ -10,12 +10,12 @@ import {
 import { AuthService } from '../service/auth.service';
 import { LoginDto } from '../dto/auth.dto';
 import type { Request } from 'express';
+import * as UAParser from 'ua-parser-js';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // login endpoint requires x-tenant-id header
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -25,9 +25,31 @@ export class AuthController {
     if (!tenantId) {
       throw new Error('Missing x-tenant-id header');
     }
-    // optional device info from body or headers
-    const device = (req.headers['user-agent'] || 'unknown') as string;
-    return this.authService.login(dto.email, dto.password, tenantId, device);
+
+    const forwarded = req.headers['x-forwarded-for'];
+    let ip = Array.isArray(forwarded)
+      ? forwarded[0]
+      : forwarded?.split(',')[0].trim();
+
+    ip = ip || req.socket.remoteAddress;
+
+    // const parser = new UAParser.UAParser(req.headers['user-agent']);
+    // console.log(req.headers['user-agent'], 'and', ip);
+    // const ua = parser.getResult();
+
+    // const deviceInfo =
+    //   `${ua.device.vendor || ''} ${ua.device.model || ''} ${ua.os.name || ''} ${ua.browser.name || ''}`.trim() ||
+    //   'unknown';
+
+    const deviceInfo = (req.headers['user-agent'] as string) || 'unknown';
+
+    return this.authService.login(
+      dto.email,
+      dto.password,
+      tenantId,
+      deviceInfo,
+      ip,
+    );
   }
 
   @Post('logout')

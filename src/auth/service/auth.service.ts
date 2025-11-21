@@ -46,6 +46,7 @@ export class AuthService {
     password: string,
     tenantId: string,
     deviceInfo = 'unknown',
+    ipAddress = 'unknown',
   ) {
     const user = await this.validateUser(email, password, tenantId);
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -66,29 +67,31 @@ export class AuthService {
       access_token: accessToken,
       refresh_token: refreshToken,
       device_type: deviceInfo,
+      ip_address: ipAddress,
       expiry_at: expiryAt,
     };
 
-    // 👉 1. GET ALL ACTIVE SESSIONS FROM DB
     const allSessions = await this.userSessionsService.getActiveSessionsForUser(
       user._id.toString(),
     );
 
-    // 👉 2. SPLIT SESSIONS
-    const sameDeviceSessions = allSessions.filter(
-      (s) => s.device_type === deviceInfo,
-    );
-    const otherDeviceSessions = allSessions.filter(
-      (s) => s.device_type !== deviceInfo,
+    // 👉 SAME DEVICE + SAME IP = old session that needs to be deleted
+    const sameDeviceAndIpSessions = allSessions.filter(
+      (s) => s.device_type === deviceInfo && s.ip_address === ipAddress,
     );
 
-    // 👉 3. DELETE PREVIOUS SESSIONS FROM SAME DEVICE
-    for (const s of sameDeviceSessions) {
+    // 👉 DIFFERENT device OR IP = alert required
+    const differentSessions = allSessions.filter(
+      (s) => s.device_type !== deviceInfo || s.ip_address !== ipAddress,
+    );
+
+    // Delete previous sessions from same device+IP
+    for (const s of sameDeviceAndIpSessions) {
       await this.userSessionsService.deactivateSession(s._id!.toString());
     }
 
-    // 👉 4. SEND ALERT **ONLY TO OTHER DEVICE SESSIONS**
-    for (const s of otherDeviceSessions) {
+    // Send email alert only to sessions with different IP/device
+    for (const s of differentSessions) {
       await this.mailerService.sendMail({
         to: user.email,
         subject: 'New login detected',
@@ -97,24 +100,12 @@ export class AuthService {
           name: user.name,
           time: format(new Date(), 'yyyy-MM-dd HH:mm:ss'),
           device: deviceInfo,
+          ip: ipAddress,
         },
       });
     }
 
-    // 👉 5. CREATE NEW SESSION
     const savedSession = await this.userSessionsService.create(sessionDto);
-
-    // Redis update:
-    const sessionSetKey = this.redisSessionSetKey(user._id.toString());
-    await this.cacheManager.set(sessionSetKey, [
-      ...otherDeviceSessions.map((s) => s._id!.toString()),
-      savedSession._id.toString(),
-    ]);
-
-    await this.cacheManager.set(
-      this.redisActiveKey(user._id.toString()),
-      savedSession._id.toString(),
-    );
 
     return {
       accessToken,

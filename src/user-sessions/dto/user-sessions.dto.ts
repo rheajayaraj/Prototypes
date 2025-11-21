@@ -6,6 +6,7 @@ export class CreateUserSessionDto {
   @IsNotEmpty() access_token: string;
   @IsNotEmpty() refresh_token: string;
   @IsOptional() device_type?: string;
+  @IsOptional() ip_address?: string;
   @IsOptional() device_token?: string;
   @IsOptional() fcm_token?: string;
   @IsOptional() more_info?: string;

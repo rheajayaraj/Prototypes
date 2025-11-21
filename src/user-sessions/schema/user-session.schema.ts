@@ -23,6 +23,9 @@ export class UserSession {
   device_token?: string;
 
   @Prop({ required: false })
+  ip_address?: string;
+
+  @Prop({ required: false })
   device_type?: string;
 
   @Prop()
