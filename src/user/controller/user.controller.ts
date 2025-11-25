@@ -4,12 +4,16 @@ import {
   Post,
   Headers,
   BadRequestException,
+  UseGuards,
+  Get,
+  Req,
 } from '@nestjs/common';
 import { CreateUserDto, UpdatePasswordDto } from '../dto/user.dto';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { HeaderDto } from 'src/general/dto/header.dto';
 import { UserService } from '../service/user.service';
+import { AuthGuard } from 'src/middleware/auth.guard';
 
 @Controller('user')
 export class UserController {
@@ -48,5 +52,13 @@ export class UserController {
       throw new BadRequestException(errorMessages);
     }
     return this.userService.updatePassword(data.email, data.password);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get()
+  async getUsers(@Req() req: Request) {
+    const jwtUser = req['user']; // added by AuthGuard decode
+
+    return this.userService.getUsersWithPermissions(jwtUser);
   }
 }

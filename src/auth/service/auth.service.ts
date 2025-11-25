@@ -52,7 +52,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const payload = {
-      sub: user._id.toString(),
+      id: user._id.toString(),
       type: user.type,
       tenantId: user.tenantId!.toString(),
     };

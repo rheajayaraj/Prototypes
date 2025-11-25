@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from '../schema/user.schema';
 import { Hospital, HospitalSchema } from 'src/general/schemas/hospital.schema';
 import { UserSessionsModule } from 'src/user-sessions/module/user-sessions.module';
+import { Role, RoleSchema } from 'src/general/schemas/role.schema';
 
 @Module({
   controllers: [UserController],
@@ -15,6 +16,7 @@ import { UserSessionsModule } from 'src/user-sessions/module/user-sessions.modul
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Hospital.name, schema: HospitalSchema },
+      { name: Role.name, schema: RoleSchema },
     ]),
     UserSessionsModule,
   ],

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { UserType } from '../../common/enums';
 
 export type UserDocument = User & Document;
@@ -29,6 +29,9 @@ export class User {
 
   @Prop({ type: String, enum: UserType, required: true })
   type: UserType;
+
+  @Prop({ type: Types.ObjectId, ref: 'Role' })
+  role: Types.ObjectId;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,

@@ -9,6 +9,7 @@ export class CreateUserDto {
   age?: number;
   type: UserType;
   tenantId: string;
+  roleKey: string;
 }
 
 export class UpdatePasswordDto {
