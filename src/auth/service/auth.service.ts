@@ -9,6 +9,11 @@ import { CreateUserSessionDto } from '../../user-sessions/dto/user-sessions.dto'
 import { v4 as uuidv4 } from 'uuid';
 import { MailerService } from '@nestjs-modules/mailer';
 import { format } from 'date-fns';
+import * as speakeasy from 'speakeasy';
+import * as qrcode from 'qrcode';
+import { InjectModel } from '@nestjs/mongoose';
+import { User, UserDocument } from 'src/user/schema/user.schema';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +26,7 @@ export class AuthService {
     private readonly cacheManager: Cache, // <---- NEW CHANGE
 
     private readonly mailerService: MailerService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   private redisActiveKey(userId: string) {
@@ -50,6 +56,12 @@ export class AuthService {
   ) {
     const user = await this.validateUser(email, password, tenantId);
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    if (user.two_factor_enabled) {
+      // return an indicator and a short-lived token
+      const twoFactorToken = this.generateTwoFactorToken(user._id.toString());
+      return { two_factor_required: true, two_factor_token: twoFactorToken };
+    }
 
     const payload = {
       id: user._id.toString(),
@@ -140,5 +152,107 @@ export class AuthService {
 
     const sessionSetKey = this.redisSessionSetKey(userId);
     await this.cacheManager.del(sessionSetKey);
+  }
+
+  async generateTwoFactorSecret(userId: string) {
+    // generate secret; label with app and user email for scanner
+    const user = await this.usersService.findById(userId);
+    const secret = speakeasy.generateSecret({
+      name: `Telemedicine (${user!.email})`,
+      length: 20,
+    });
+
+    await this.userModel.findByIdAndUpdate(userId, {
+      two_factor_temp_secret: secret.base32,
+    });
+
+    // generate QR data url from otpauth_url
+    const otpauth_url = secret.otpauth_url!;
+    const qrCodeDataURL = await qrcode.toDataURL(otpauth_url);
+
+    // store the secret temporarily in DB for this user (not enabling yet)
+    // Option A: save secret in user.two_factor_temp_secret and wait for verify-setup
+    // Option B: save secret directly and only enable after verify
+    await this.usersService.setTwoFactorTempSecret(userId, secret.base32);
+
+    return { otpauth_url, qrCodeDataURL, base32: secret.base32 };
+  }
+
+  async verifyAndEnableTwoFactor(userId: string, code: string) {
+    // read temp secret
+    const tempSecret = await this.usersService.getTwoFactorTempSecret(userId);
+    if (!tempSecret) throw new Error('No 2FA setup in progress');
+
+    const verified = speakeasy.totp.verify({
+      secret: tempSecret,
+      encoding: 'base32',
+      token: code,
+      window: 1,
+    });
+
+    if (!verified) {
+      throw new Error('Invalid 2FA code');
+    }
+
+    // enable 2FA and store secret permanently on user
+    await this.usersService.enableTwoFactorForUser(userId, tempSecret);
+
+    // cleanup temp secret maybe
+    return { success: true };
+  }
+
+  // Called when login returns two_factor_required
+  async verifyTwoFactorToken(twoFactorToken: string, code: string) {
+    try {
+      const payload = this.jwtService.verify(twoFactorToken, {
+        secret: process.env.JWT_SECRET,
+      }) as any;
+      if (!payload || !payload.tfa || !payload.sub)
+        throw new Error('Invalid token');
+
+      const userId = payload.sub;
+      const user = await this.usersService.findById(userId);
+      if (!user || !user.two_factor_enabled || !user.two_factor_secret) {
+        throw new Error('2FA not configured for user');
+      }
+
+      // verify code
+      const valid = speakeasy.totp.verify({
+        secret: user.two_factor_secret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+
+      if (!valid) throw new Error('Invalid 2FA code');
+
+      // issue final access token (full JWT) – include tenant and user_type as you need
+      const payloadJwt = {
+        sub: user._id.toString(),
+        type: user.type,
+        tenantId: user.tenantId?.toString(),
+      };
+
+      const accessToken = this.jwtService.sign(payloadJwt);
+      const refreshToken = /* generate refresh token */ uuidv4();
+      // Save session/refresh token etc as you already do
+
+      return { accessToken, refreshToken };
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // helper for login: when 2FA is enabled return a temporary token
+  generateTwoFactorToken(userId: string) {
+    return this.jwtService.sign(
+      { sub: userId, tfa: true },
+      { expiresIn: '5m' },
+    );
+  }
+
+  async disableTwoFactor(userId: string) {
+    await this.usersService.disableTwoFactor(userId);
+    return { success: true };
   }
 }

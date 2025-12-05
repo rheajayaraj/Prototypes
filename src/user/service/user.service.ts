@@ -72,7 +72,7 @@ export class UserService {
 
   async getUsersWithPermissions(jwtUser: any) {
     const userId = jwtUser.id;
-    const tenantId = jwtUser.tenantId; // array of tenant ObjectIds
+    const tenantId = jwtUser.tenantId;
     const user = await this.userModel.findById(userId);
     const roleId = user!.role.toString();
 
@@ -112,5 +112,38 @@ export class UserService {
     });
 
     return { count: users.length, users };
+  }
+
+  // user.service.ts
+  async setTwoFactorTempSecret(userId: string, tempSecret: string) {
+    return this.userModel.updateOne(
+      { _id: userId },
+      { $set: { two_factor_temp_secret: tempSecret } },
+    );
+  }
+
+  async getTwoFactorTempSecret(userId: string) {
+    const u = await this.userModel.findById(userId).lean();
+    return u?.two_factor_temp_secret;
+  }
+
+  async enableTwoFactorForUser(userId: string, secretBase32: string) {
+    return this.userModel.updateOne(
+      { _id: userId },
+      {
+        $set: { two_factor_enabled: true, two_factor_secret: secretBase32 },
+        $unset: { two_factor_temp_secret: '' },
+      },
+    );
+  }
+
+  async disableTwoFactor(userId: string) {
+    return this.userModel.updateOne(
+      { _id: userId },
+      {
+        $set: { two_factor_enabled: false },
+        $unset: { two_factor_secret: '' },
+      },
+    );
   }
 }

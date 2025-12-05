@@ -39,6 +39,15 @@ export class User {
     required: true,
   })
   tenantId?: MongooseSchema.Types.ObjectId;
+
+  @Prop({ default: false })
+  two_factor_enabled?: boolean;
+
+  @Prop()
+  two_factor_secret?: string;
+
+  @Prop()
+  two_factor_temp_secret?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

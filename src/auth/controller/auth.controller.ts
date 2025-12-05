@@ -8,9 +8,10 @@ import {
   Headers,
 } from '@nestjs/common';
 import { AuthService } from '../service/auth.service';
-import { LoginDto } from '../dto/auth.dto';
+import { LoginDto, Verify2FADto } from '../dto/auth.dto';
 import type { Request } from 'express';
 import * as UAParser from 'ua-parser-js';
+import { AuthGuard } from 'src/middleware/auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -58,5 +59,36 @@ export class AuthController {
     @Body('userId') userId: string,
   ) {
     return this.authService.logout(sessionId, userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('2fa/generate')
+  async generate2FA(@Req() req) {
+    const userId = req.user.sub || req.user.id;
+    return this.authService.generateTwoFactorSecret(userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('2fa/verify-setup')
+  async verify2Fasetup(@Req() req, @Body() body: Verify2FADto) {
+    const userId = req.user.sub || req.user.id;
+    return this.authService.verifyAndEnableTwoFactor(userId, body.code);
+  }
+
+  // Validate TOTP in login flow
+  @Post('2fa/validate')
+  async validate2FA(@Body() body: { twoFactorToken: string; code: string }) {
+    return this.authService.verifyTwoFactorToken(
+      body.twoFactorToken,
+      body.code,
+    );
+  }
+
+  // Disable 2FA (must be authenticated) - you may require password confirmation
+  @UseGuards(AuthGuard)
+  @Post('2fa/disable')
+  async disable2FA(@Req() req) {
+    const userId = req.user.sub || req.user._id;
+    return this.authService.disableTwoFactor(userId);
   }
 }
