@@ -170,9 +170,6 @@ export class AuthService {
     const otpauth_url = secret.otpauth_url!;
     const qrCodeDataURL = await qrcode.toDataURL(otpauth_url);
 
-    // store the secret temporarily in DB for this user (not enabling yet)
-    // Option A: save secret in user.two_factor_temp_secret and wait for verify-setup
-    // Option B: save secret directly and only enable after verify
     await this.usersService.setTwoFactorTempSecret(userId, secret.base32);
 
     return { otpauth_url, qrCodeDataURL, base32: secret.base32 };

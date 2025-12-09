@@ -10,6 +10,7 @@ import { RedisModule } from './general/redis/redis.module';
 import { MailerModule } from './general/mailer/mailer.module';
 import { AuthModule } from './auth/module/auth.module';
 import { TenantMiddleware } from './middleware/tenant.middleware';
+import { HomeCareModule } from './home-care/module/home-care.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TenantMiddleware } from './middleware/tenant.middleware';
     MailerModule,
     UserSessionsModule,
     AuthModule,
+    HomeCareModule,
   ],
   controllers: [AppController, UserSessionsController],
   providers: [AppService],
