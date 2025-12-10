@@ -68,6 +68,12 @@ export class Appointment {
 
   @Prop({ enum: ['MALE', 'FEMALE'] })
   genderPreference: string;
+
+  @Prop({ required: true })
+  distanceInKm: number;
+
+  @Prop({ required: true })
+  price: number;
 }
 
 export const AppointmentSchema = SchemaFactory.createForClass(Appointment);

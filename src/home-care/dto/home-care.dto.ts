@@ -12,6 +12,7 @@ export class CreateServiceDto {
 export class CreateSlotDto {
   @IsString() label: string;
   @IsNumber() durationInMinutes: number;
+  @IsString() serviceId: string;
 }
 
 export class CreateVehicleDto {

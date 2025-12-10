@@ -2,9 +2,10 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Schema as MongooseSchema, Types } from 'mongoose';
 import { Service, ServiceDocument } from '../schema/services.schema';
 import { Slot, SlotDocument } from '../schema/slot.schema';
 import { Vehicle, VehicleDocument } from '../schema/vehicle.schema';
@@ -21,6 +22,8 @@ import {
   BookAppointmentDto,
 } from '../dto/home-care.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { calculateDistanceKm } from 'src/utils/distance.util';
+import { calculatePrice } from 'src/utils/pricing.util';
 
 @Injectable()
 export class HomeCareService {
@@ -45,8 +48,32 @@ export class HomeCareService {
   }
 
   async createSlot(dto: CreateSlotDto) {
-    const slot = new this.slotModel(dto);
-    return await slot.save();
+    const startHour = 9;
+    const endHour = 18;
+
+    const slots: Partial<Slot>[] = [];
+
+    let start = new Date();
+    start.setHours(startHour, 0, 0, 0);
+
+    let end = new Date(start);
+    end.setMinutes(start.getMinutes() + dto.durationInMinutes);
+
+    while (end.getHours() <= endHour) {
+      slots.push({
+        start: new Date(start),
+        end: new Date(end),
+        durationInMinutes: dto.durationInMinutes,
+        serviceId: new Types.ObjectId(dto.serviceId),
+        label: dto.label,
+      });
+
+      start = new Date(end);
+      end = new Date(start);
+      end.setMinutes(start.getMinutes() + dto.durationInMinutes);
+    }
+
+    return this.slotModel.insertMany(slots);
   }
 
   async createVehicle(dto: CreateVehicleDto) {
@@ -86,6 +113,10 @@ export class HomeCareService {
 
     const slot = await this.slotModel.findById(dto.slotId);
     if (!slot) throw new NotFoundException('Slot not found');
+    if (slot.active == false)
+      throw new ForbiddenException('Slot is not Active');
+    slot.active = false;
+    await slot.save();
 
     // schedule time (if provided)
     let scheduledAt: Date;
@@ -98,15 +129,27 @@ export class HomeCareService {
 
     const orderId = `${orderPrefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    const distance = calculateDistanceKm(
+      dto.latitude,
+      dto.longitude,
+      service.location.coordinates[0],
+      service.location.coordinates[1],
+    );
+
+    // 2. Calculate price
+    const price = calculatePrice(distance);
+
     const appt = new this.appointmentModel({
       userId: userId,
       serviceId: service.id,
       slot: slot.id,
       orderId,
       scheduledAt,
-      location: { lat: dto.longitude, lng: dto.latitude },
+      location: { lat: dto.latitude, lng: dto.longitude },
       status: 'PENDING',
       genderPreference: dto.genderPreference,
+      distanceInKm: distance,
+      price,
     });
 
     const saved = await appt.save();
