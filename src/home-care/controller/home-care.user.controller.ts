@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   Req,
+  Param,
 } from '@nestjs/common';
 import { HomeCareService } from '../service/home-care.service';
 import { BookAppointmentDto } from '../dto/home-care.dto';
@@ -15,8 +16,10 @@ import { AuthGuard } from 'src/middleware/auth.guard';
 export class HomeCareController {
   constructor(private readonly svc: HomeCareService) {}
 
+  @UseGuards(AuthGuard)
   @Get('services/nearby')
   async nearby(
+    @Req() req,
     @Query('lat') lat: string,
     @Query('lng') lng: string,
     @Query('radiusKm') radiusKm?: string,
@@ -24,7 +27,15 @@ export class HomeCareController {
     const latN = parseFloat(lat);
     const lngN = parseFloat(lng);
     const rad = radiusKm ? parseFloat(radiusKm) : 10;
-    return this.svc.findServicesNearby(latN, lngN, rad);
+    const userId = req.user?.sub || req.user?.id;
+    return this.svc.findServicesNearby(latN, lngN, rad, userId);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('slots')
+  async getSlots(@Query('serviceId') serviceId: string, @Req() req) {
+    const userId = req.user?.sub || req.user?.id;
+    return this.svc.getAvailableSlots(serviceId, userId);
   }
 
   @UseGuards(AuthGuard)

@@ -86,8 +86,30 @@ export class HomeCareService {
     return p.save();
   }
 
+  async getAvailableSlots(serviceId: string, userId: string) {
+    // Fetch all slots for this service
+    const allSlots = await this.slotModel.find({ serviceId });
+
+    // Fetch all appointments made by this user for this service
+    const booked = await this.appointmentModel
+      .find({
+        userId,
+        serviceId,
+      })
+      .select('slot');
+
+    const bookedSlotIds = booked.map((b) => b.slot.toString());
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter(
+      (slot) => !bookedSlotIds.includes(slot._id.toString()),
+    );
+
+    return availableSlots;
+  }
+
   // find services within radiusKm km
-  async findServicesNearby(lat: number, lng: number, radiusKm = 10) {
+  async findServicesNearby(lat: number, lng: number, radiusKm = 10, userId) {
     const meters = radiusKm * 1000;
     const results = await this.serviceModel
       .find({
@@ -115,8 +137,6 @@ export class HomeCareService {
     if (!slot) throw new NotFoundException('Slot not found');
     if (slot.active == false)
       throw new ForbiddenException('Slot is not Active');
-    slot.active = false;
-    await slot.save();
 
     // schedule time (if provided)
     let scheduledAt: Date;

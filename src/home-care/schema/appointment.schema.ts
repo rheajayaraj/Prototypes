@@ -27,8 +27,12 @@ export class Appointment {
   })
   assignedVehicle?: Types.ObjectId;
 
-  @Prop({ required: true })
-  slot: string;
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Slot',
+    required: true,
+  })
+  slot: Types.ObjectId;
 
   @Prop({
     type: {
