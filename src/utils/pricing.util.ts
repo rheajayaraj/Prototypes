@@ -1,9 +1,13 @@
-export function calculatePrice(distanceInKm: number): number {
-  const basePrice = 100; // or service-specific price
-  if (distanceInKm <= 10) return basePrice;
+export function calculatePrice(
+  distanceInKm: number,
+  basePrice,
+  baseDistance,
+  incrementPrice,
+): number {
+  if (distanceInKm <= baseDistance) return basePrice;
 
-  const extraKm = distanceInKm - 10;
-  const extraCharge = extraKm * 5;
+  const extraKm = distanceInKm - baseDistance;
+  const extraCharge = extraKm * incrementPrice;
 
   return basePrice + extraCharge;
 }

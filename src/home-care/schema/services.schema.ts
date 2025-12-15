@@ -26,6 +26,15 @@ export class Service {
 
   @Prop()
   createdAt?: Date;
+
+  @Prop({ type: Number })
+  basePrice: Number;
+
+  @Prop({ type: Number })
+  incrementPrice: Number;
+
+  @Prop({ type: Number })
+  baseDistance: Number;
 }
 export const ServiceSchema = SchemaFactory.createForClass(Service);
 ServiceSchema.index({ location: '2dsphere' });

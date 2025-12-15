@@ -5,8 +5,11 @@ export class CreateServiceDto {
   @IsString() @IsOptional() description?: string;
 
   // lat/lng provided in body as numbers
-  @IsNumber() latitude: number;
-  @IsNumber() longitude: number;
+  @IsNumber() @IsNotEmpty() latitude: number;
+  @IsNumber() @IsNotEmpty() longitude: number;
+  @IsNumber() @IsNotEmpty() basePrice: number;
+  @IsNumber() @IsNotEmpty() baseDistance: number;
+  @IsNumber() @IsNotEmpty() incrementPrice: number;
 }
 
 export class CreateSlotDto {

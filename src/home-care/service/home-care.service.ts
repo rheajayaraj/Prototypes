@@ -42,12 +42,18 @@ export class HomeCareService {
     const doc = new this.serviceModel({
       name: dto.name,
       description: dto.description,
-      location: { type: 'Point', coordinates: [dto.longitude, dto.latitude] },
+      location: { type: 'Point', coordinates: [dto.latitude, dto.longitude] },
+      baseDistance: dto.baseDistance,
+      basePrice: dto.basePrice,
+      incrementPrice: dto.incrementPrice,
     });
     return doc.save();
   }
 
   async createSlot(dto: CreateSlotDto) {
+    const service = await this.serviceModel.findById(dto.serviceId);
+    if (!service) throw new NotFoundException('Service not found');
+
     const startHour = 9;
     const endHour = 18;
 
@@ -133,10 +139,21 @@ export class HomeCareService {
     const service = await this.serviceModel.findById(dto.serviceId);
     if (!service) throw new NotFoundException('Service not found');
 
-    const slot = await this.slotModel.findById(dto.slotId);
+    const slot = await this.slotModel.findOne({
+      _id: dto.slotId,
+      serviceId: service.id,
+    });
     if (!slot) throw new NotFoundException('Slot not found');
     if (slot.active == false)
       throw new ForbiddenException('Slot is not Active');
+
+    const existingAppointment = await this.appointmentModel.findOne({
+      serviceId: service.id,
+      slot: slot.id,
+      userId,
+    });
+    if (existingAppointment)
+      throw new ForbiddenException('Appoinment already exists');
 
     // schedule time (if provided)
     let scheduledAt: Date;
@@ -157,7 +174,12 @@ export class HomeCareService {
     );
 
     // 2. Calculate price
-    const price = calculatePrice(distance);
+    const price = calculatePrice(
+      distance,
+      service.basePrice,
+      service.baseDistance,
+      service.incrementPrice,
+    );
 
     const appt = new this.appointmentModel({
       userId: userId,
