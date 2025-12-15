@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { HomeCareService } from '../service/home-care.service';
 import {
   CreateServiceDto,
@@ -14,6 +14,11 @@ export class HomeCareAdminController {
   @Post('services')
   createService(@Body() dto: CreateServiceDto) {
     return this.svc.createService(dto);
+  }
+
+  @Post('services/update')
+  updateService(@Body() body, @Query() id) {
+    return this.svc.updateService(id, body);
   }
 
   @Post('slots')

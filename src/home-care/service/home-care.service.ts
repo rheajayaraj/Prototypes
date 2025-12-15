@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Sse,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Schema as MongooseSchema, Types } from 'mongoose';
@@ -48,6 +49,15 @@ export class HomeCareService {
       incrementPrice: dto.incrementPrice,
     });
     return doc.save();
+  }
+
+  async updateService(id, body) {
+    id = new Types.ObjectId(id);
+    const service = this.serviceModel.findByIdAndUpdate(id, body, {
+      new: true,
+    });
+    if (!service) throw new NotFoundException('Service not found');
+    return service;
   }
 
   async createSlot(dto: CreateSlotDto) {
