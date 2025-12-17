@@ -271,15 +271,15 @@ export class HomeCareService {
   async getAppointmentsForUser(userId: string) {
     return this.appointmentModel
       .find({ user: userId })
-      .populate('service slot assignedProvider assignedVehicle')
+      .populate('serviceId slot assignedProvider assignedVehicle')
       .lean();
   }
 
   // admin: get unassigned appointments
   async getUnassignedAppointments() {
     return this.appointmentModel
-      .find({ status: 'CREATED' })
-      .populate('user service slot')
+      .find({ status: 'PENDING' })
+      .populate('userId serviceId slot')
       .lean();
   }
 }

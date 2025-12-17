@@ -145,6 +145,8 @@ export class AuthService {
 
     // Also update DB
     await this.userSessionsService.terminateAllSessionsForUser(userId);
+
+    return { message: 'User has been logged out' };
   }
 
   async forceLogoutAll(userId: string) {

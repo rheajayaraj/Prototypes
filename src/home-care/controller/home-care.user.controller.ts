@@ -48,7 +48,7 @@ export class HomeCareController {
 
   @Get('appointments/me')
   async myAppointments(@Req() req) {
-    const userId = req.user?.sub || req.user?._id;
+    const userId = req.user?.sub || req.user?.id;
     return this.svc.getAppointmentsForUser(userId);
   }
 }
