@@ -131,7 +131,7 @@ export class HomeCareService {
       .find({
         location: {
           $near: {
-            $geometry: { type: 'Point', coordinates: [lng, lat] },
+            $geometry: { type: 'Point', coordinates: [lat, lng] },
             $maxDistance: meters,
           },
         },
